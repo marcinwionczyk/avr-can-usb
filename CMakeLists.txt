@@ -14,7 +14,7 @@ set(F_CPU 8000000UL)
 # https://gcc.gnu.org/onlinedocs/gcc/AVR-Options.html
 set(MCU atmega644pa)
 # Default Baudrate for UART, read avr include/util/setbaud.h for usage
-set(BAUD 38400)
+set(BAUD 250000)
 # The programmer to use, read avrdude manual for list
 set(PROG_TYPE jtag1)
 
