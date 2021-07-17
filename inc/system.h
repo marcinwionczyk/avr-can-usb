@@ -8,6 +8,27 @@
 #include "port.h"
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
+#include <avr/builtins.h>
+#define cpu_irq_enable() sei()
+#define cpu_irq_disable() cli()
+
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
+
+#define ENTER_CRITICAL(void) __asm__ __volatile__ (   \
+   "in __tmp_reg__, __SREG__"                    "\n\t" \
+   "cli"                                         "\n\t" \
+   "push __tmp_reg__"                            "\n\t" \
+   ::: "memory"                                         \
+   )
+
+#define EXIT_CRITICAL(void)  __asm__ __volatile__ (   \
+   "pop __tmp_reg__"                             "\n\t" \
+   "out __SREG__, __tmp_reg__"                   "\n\t" \
+   ::: "memory"                                         \
+   )
+
+#define DISABLE_INTERRUPTS()        __asm__ __volatile__ ( "cli" ::: "memory")
+#define ENABLE_INTERRUPTS()         __asm__ __volatile__ ( "sei" ::: "memory")
 
 
 /** Function pointer to callback function called by SPI IRQ.
@@ -40,6 +61,54 @@ typedef enum spi_transfer_status {
 
 typedef enum { RX_CB = 1, UDRE_CB } usart_cb_type_t;
 typedef void (*usart_cb_t)(void);
+
+#ifndef BAUD_TOL
+#define BAUD_TOL 2
+#endif
+
+#ifdef __ASSEMBLER__
+#define UBRR_VALUE (((F_CPU) + 8 * (BAUD)) / (16 * (BAUD)) - 1)
+#else
+#define UBRR_VALUE (((F_CPU) + 8UL * (BAUD)) / (16UL * (BAUD)) - 1UL)
+#endif
+
+#if 100 * (F_CPU) > (16 * ((UBRR_VALUE) + 1)) * (100 * (BAUD) + (BAUD) * (BAUD_TOL))
+#define USE_2X 1
+#elif 100 * (F_CPU) < (16 * ((UBRR_VALUE) + 1)) * (100 * (BAUD) - (BAUD) * (BAUD_TOL))
+#define USE_2X 1
+#else
+#define USE_2X 0
+#endif
+
+#if USE_2X
+/* U2X required, recalculate */
+#undef UBRR_VALUE
+
+#ifdef __ASSEMBLER__
+#define UBRR_VALUE (((F_CPU) + 4 * (BAUD)) / (8 * (BAUD)) - 1)
+#else
+#define UBRR_VALUE (((F_CPU) + 4UL * (BAUD)) / (8UL * (BAUD)) - 1UL)
+#endif
+
+#if 100 * (F_CPU) > (8 * ((UBRR_VALUE) + 1)) * (100 * (BAUD) + (BAUD) * (BAUD_TOL))
+#warning "Baud rate achieved is higher than allowed"
+#endif
+
+#if 100 * (F_CPU) < (8 * ((UBRR_VALUE) + 1)) * (100 * (BAUD) - (BAUD) * (BAUD_TOL))
+#warning "Baud rate achieved is lower than allowed"
+#endif
+
+#endif /* USE_U2X */
+
+#ifdef UBRR_VALUE
+/* Check for overflow */
+#if UBRR_VALUE >= (1 << 12)
+#warning "UBRR value overflow"
+#endif
+
+#define UBRRL_VALUE (UBRR_VALUE & 0xff)
+#define UBRRH_VALUE (UBRR_VALUE >> 8)
+#endif
 
 int8_t USART_0_init(void);
 

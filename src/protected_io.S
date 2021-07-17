@@ -36,7 +36,8 @@
  *@{
  */
 
-#include <assembler.h>
+#include <gas.h>
+#include <avr/io.h>
 
 /*
 	 * GNU and IAR use different calling conventions. Since this is

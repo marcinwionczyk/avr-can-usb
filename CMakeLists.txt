@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.11)
 # Project name
 project("avr can usb")
-
+enable_language(C ASM)
 # Product filename
 set(PRODUCT_NAME avr-can-usb)
 
@@ -24,7 +24,8 @@ set(E_FUSE 0xff)
 set(H_FUSE 0xb9)
 set(L_FUSE 0xcf)
 set(LOCK_BIT 0xff)
-
+SET(ASM_OPTIONS "-x assembler-with-cpp")
+SET(CMAKE_ASM_FLAGS "${CFLAGS} ${ASM_OPTIONS}" )
 
 # Use AVR GCC toolchain
 set(CMAKE_SYSTEM_NAME Generic)
@@ -32,6 +33,7 @@ set(CMAKE_CXX_COMPILER avr-g++)
 set(CMAKE_C_COMPILER avr-gcc)
 set(CMAKE_ASM_COMPILER avr-gcc)
 
+find_program(AVR_SIZE_TOOL avr-size REQUIRED)
 
 # Pass defines to compiler
 add_definitions(
@@ -67,7 +69,7 @@ add_compile_options(
 
 include_directories("inc")
 
-file(GLOB SRC_FILES "src/*.c") # Load all files in src folder
+file(GLOB SRC_FILES "src/*.c" "src/protected_io.S") # Load all files in src folder
 # Create one target
 add_executable(${PRODUCT_NAME} ${SRC_FILES})
 
@@ -88,9 +90,9 @@ add_custom_target(upload avrdude  -c ${PROG_TYPE} -p ${MCU} -U flash:w:${PRODUCT
 
 # Upload the eeprom with avrdude
 add_custom_target(upload_eeprom avrdude -c ${PROG_TYPE} -p ${MCU}  -U eeprom:w:${PRODUCT_NAME}.eep DEPENDS eeprom)
-
+# check size
+add_custom_target(check_size avr-objcopy -j .text -j .data -O ihex ${PRODUCT_NAME}.elf ${PRODUCT_NAME}.hex && ${AVR_SIZE_TOOL} -C;--mcu=${MCU} ${PRODUCT_NAME}.elf DEPENDS strip)
 # Burn fuses
 add_custom_target(fuses avrdude -c ${PROG_TYPE} -p ${MCU}  -U lfuse:w:${L_FUSE}:m -U hfuse:w:${H_FUSE}:m -U efuse:w:${E_FUSE}:m -U lock:w:${LOCK_BIT}:m )
-
 # Clean extra files
 set_directory_properties(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES "${PRODUCT_NAME}.hex;${PRODUCT_NAME}.eeprom;${PRODUCT_NAME}.lst")
