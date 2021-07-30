@@ -9,14 +9,14 @@ set(PRODUCT_NAME avr-can-usb)
 ## AVR Chip Configuration
 # 8Mhz, this should match the crystal on your board,
 # I use 8Mhz and 3.3V for the lowest power consumption
-set(F_CPU 8000000UL)
+set(F_CPU 14745600UL)
 # CPU, you can find the list here:
 # https://gcc.gnu.org/onlinedocs/gcc/AVR-Options.html
 set(MCU atmega644pa)
 # Default Baudrate for UART, read avr include/util/setbaud.h for usage
-set(BAUD 250000)
+set(BAUD 115200)
 # The programmer to use, read avrdude manual for list
-set(PROG_TYPE jtag1)
+set(PROG_TYPE atmelice)
 
 # AVR Fuses, must be in concordance with your hardware and F_CPU
 # http://eleccelerator.com/fusecalc/fusecalc.php?chip=atmega328p
@@ -86,10 +86,10 @@ add_custom_target(hex ALL avr-objcopy -R .eeprom -O ihex ${PRODUCT_NAME}.elf ${P
 add_custom_target(eeprom avr-objcopy -j .eeprom  --set-section-flags=.eeprom="alloc,load"  --change-section-lma .eeprom=0 -O ihex ${PRODUCT_NAME}.elf ${PRODUCT_NAME}.eep DEPENDS strip)
 
 # Upload the firmware with avrdude
-add_custom_target(upload avrdude  -c ${PROG_TYPE} -p ${MCU} -U flash:w:${PRODUCT_NAME}.hex DEPENDS hex)
+add_custom_target(upload avrdude  -c ${PROG_TYPE} -P usb -p ${MCU} -U flash:w:${PRODUCT_NAME}.hex DEPENDS hex)
 
 # Upload the eeprom with avrdude
-add_custom_target(upload_eeprom avrdude -c ${PROG_TYPE} -p ${MCU}  -U eeprom:w:${PRODUCT_NAME}.eep DEPENDS eeprom)
+add_custom_target(upload_eeprom avrdude -c ${PROG_TYPE} -P usb -p ${MCU}  -U eeprom:w:${PRODUCT_NAME}.eep DEPENDS eeprom)
 # check size
 add_custom_target(check_size avr-objcopy -j .text -j .data -O ihex ${PRODUCT_NAME}.elf ${PRODUCT_NAME}.hex && ${AVR_SIZE_TOOL} -C;--mcu=${MCU} ${PRODUCT_NAME}.elf DEPENDS strip)
 # Burn fuses
